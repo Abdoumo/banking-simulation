@@ -1110,3 +1110,55 @@ a:hover { color: var(--primary-300); }
 .modal-close:hover {
   color: var(--text-primary);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ALGERIAN NATIONAL DESIGN THEME (Vert, Blanc, Rouge) 🇩🇿
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --dz-green: #006233;
+  --dz-green-bright: #10b981;
+  --dz-green-glow: rgba(0, 98, 51, 0.4);
+  --dz-red: #d21034;
+  --dz-red-bright: #f87171;
+  --dz-red-glow: rgba(210, 16, 52, 0.4);
+  --dz-white: #ffffff;
+}
+
+.dz-theme {
+  border-top: 4px solid var(--dz-green) !important;
+}
+
+.dz-card {
+  background: #0d1522 !important;
+  border: 1px solid rgba(0, 98, 51, 0.3) !important;
+}
+
+.dz-badge-green {
+  background: var(--dz-green) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border: 1px solid var(--dz-green-bright) !important;
+}
+
+.dz-badge-red {
+  background: var(--dz-red) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border: 1px solid var(--dz-red-bright) !important;
+}
+
+.dz-btn-green {
+  background: linear-gradient(135deg, var(--dz-green) 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 800;
+  box-shadow: 0 4px 15px var(--dz-green-glow) !important;
+}
+
+.dz-btn-red {
+  background: linear-gradient(135deg, var(--dz-red) 0%, #be123c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 800;
+  box-shadow: 0 4px 15px var(--dz-red-glow) !important;
+}

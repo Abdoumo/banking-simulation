@@ -384,7 +384,7 @@ function generateKycEngineProfile(client, kyc = {}, accounts = []) {
     };
   });
 
-  return {
+  const profileResult = {
     summary: {
       customerId: customerIdFormatted,
       clientName: `${client.prenom} ${client.nom}`,
@@ -411,6 +411,51 @@ function generateKycEngineProfile(client, kyc = {}, accounts = []) {
     },
     accounts: enrichedAccounts,
   };
+
+  // Merge custom user-edited overrides if any
+  const override = clientOverridesMap.get(Number(clientId)) || (kyc.engine_data ? (typeof kyc.engine_data === 'string' ? JSON.parse(kyc.engine_data) : kyc.engine_data) : null);
+  if (override) {
+    if (override.tabs) {
+      if (override.tabs.identity) Object.assign(profileResult.tabs.identity, override.tabs.identity);
+      if (override.tabs.business) Object.assign(profileResult.tabs.business, override.tabs.business);
+      if (override.tabs.financial) Object.assign(profileResult.tabs.financial, override.tabs.financial);
+      if (override.tabs.ubo) Object.assign(profileResult.tabs.ubo, override.tabs.ubo);
+      if (override.tabs.documents) profileResult.tabs.documents = override.tabs.documents;
+      if (override.tabs.riskEngine) Object.assign(profileResult.tabs.riskEngine, override.tabs.riskEngine);
+      if (override.tabs.behavior) Object.assign(profileResult.tabs.behavior, override.tabs.behavior);
+      if (override.tabs.changes) Object.assign(profileResult.tabs.changes, override.tabs.changes);
+      if (override.tabs.history) profileResult.tabs.history = override.tabs.history;
+    }
+    if (override.summary) {
+      Object.assign(profileResult.summary, override.summary);
+    }
+  }
+
+  return profileResult;
 }
 
-module.exports = { generateKycEngineProfile };
+const clientOverridesMap = new Map();
+
+function saveKycEngineOverride(clientId, updatedProfile) {
+  const existing = clientOverridesMap.get(Number(clientId)) || {};
+  const merged = {
+    ...existing,
+    ...updatedProfile,
+    tabs: {
+      ...(existing.tabs || {}),
+      ...(updatedProfile.tabs || {}),
+    },
+    summary: {
+      ...(existing.summary || {}),
+      ...(updatedProfile.summary || {}),
+    }
+  };
+  clientOverridesMap.set(Number(clientId), merged);
+  return merged;
+}
+
+function getKycEngineOverride(clientId) {
+  return clientOverridesMap.get(Number(clientId)) || null;
+}
+
+module.exports = { generateKycEngineProfile, saveKycEngineOverride, getKycEngineOverride };

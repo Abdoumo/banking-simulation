@@ -1,7 +1,7 @@
 const express = require('express');
 const { KycDetail, Client, Account } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
-const { generateKycEngineProfile } = require('../utils/kycEngine');
+const { generateKycEngineProfile, saveKycEngineOverride } = require('../utils/kycEngine');
 
 const router = express.Router();
 
@@ -111,6 +111,72 @@ router.post('/engine/:clientId/ews', authMiddleware, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Erreur transmission EWS' });
+  }
+});
+
+// ── PUT /api/kyc/engine/:clientId ────────────────────────────
+// CRUD: Update/Save full KYC engine profile
+router.put('/engine/:clientId', authMiddleware, async (req, res) => {
+  try {
+    let rawId = req.params.clientId;
+    if (String(rawId).toUpperCase().startsWith('C-')) {
+      rawId = parseInt(rawId.replace(/[^0-9]/g, ''), 10);
+    }
+    const clientId = parseInt(rawId, 10) || 1245;
+    const updateData = req.body;
+
+    // 1. Save in override memory store
+    saveKycEngineOverride(clientId, updateData);
+
+    // 2. Persist to DB if client exists
+    const client = await Client.findByPk(clientId, { include: [{ association: 'kyc' }, { association: 'accounts' }] });
+    if (client) {
+      if (updateData.tabs?.identity?.fullName) {
+        const parts = updateData.tabs.identity.fullName.split(' ');
+        client.prenom = parts[0] || client.prenom;
+        client.nom = parts.slice(1).join(' ') || client.nom;
+      }
+      if (updateData.tabs?.identity?.phone) client.telephone = updateData.tabs.identity.phone;
+      if (updateData.tabs?.identity?.dateOfBirth) client.date_naissance = updateData.tabs.identity.dateOfBirth;
+      await client.save();
+
+      let kyc = client.kyc;
+      if (!kyc) {
+        kyc = await KycDetail.create({ client_id: clientId });
+      }
+      if (updateData.tabs?.identity?.address) kyc.adresse_postale = updateData.tabs.identity.address;
+      if (updateData.tabs?.business?.profession) kyc.profession = updateData.tabs.business.profession;
+      if (updateData.tabs?.financial?.declaredIncome) {
+        const num = parseFloat(String(updateData.tabs.financial.declaredIncome).replace(/[^0-9.]/g, ''));
+        if (!isNaN(num)) kyc.revenu_mensuel = num;
+      }
+      if (updateData.tabs?.identity?.identificationDocument?.documentType) {
+        kyc.doc_identite_type = updateData.tabs.identity.identificationDocument.documentType;
+      }
+      if (updateData.tabs?.identity?.identificationDocument?.documentNumber) {
+        kyc.doc_identite_numero = updateData.tabs.identity.identificationDocument.documentNumber;
+      }
+      try {
+        kyc.engine_data = updateData;
+        await kyc.save();
+      } catch (e) {
+        // Fallback if column not yet added
+      }
+    }
+
+    const clientData = client ? client.toJSON() : { client_id: clientId };
+    const kycData = client?.kyc ? client.kyc.toJSON() : {};
+    const accountsData = client?.accounts || [];
+    const refreshed = generateKycEngineProfile(clientData, kycData, accountsData);
+
+    res.json({
+      success: true,
+      message: 'Profil KYC mis à jour avec succès 🇩🇿',
+      profile: refreshed,
+    });
+  } catch (err) {
+    console.error('Error updating KYC engine:', err);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du profil KYC' });
   }
 });
 

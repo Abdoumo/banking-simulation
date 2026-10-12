@@ -27,6 +27,7 @@ export const getMe = () => request('/auth/me');
 export const getKyc = () => request('/kyc');
 export const updateKyc = (data) => request('/kyc', { method: 'PUT', body: JSON.stringify(data) });
 export const getKycEngine = (clientId) => request(`/kyc/engine/${clientId}`);
+export const updateKycEngine = (clientId, data) => request(`/kyc/engine/${clientId}`, { method: 'PUT', body: JSON.stringify(data) });
 export const sendKycToEws = (clientId) => request(`/kyc/engine/${clientId}/ews`, { method: 'POST' });
 
 // Accounts
@@ -58,4 +59,6 @@ export const updateAdminAccount = (id, data) => request(`/admin/accounts/${id}`,
 export const adminCreateCredit = (data) => request('/admin/credits', { method: 'POST', body: JSON.stringify(data) });
 export const adminUpdateCredit = (id, data) => request(`/admin/credits/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const adminDeleteCredit = (id) => request(`/admin/credits/${id}`, { method: 'DELETE' });
+export const adminCreateClient = (data) => request('/admin/clients', { method: 'POST', body: JSON.stringify(data) });
+export const adminDeleteClient = (id) => request(`/admin/clients/${id}`, { method: 'DELETE' });
 export const getAdminTransactions = (page = 1, limit = 50) => request(`/admin/transactions?page=${page}&limit=${limit}`);

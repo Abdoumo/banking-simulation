@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   getAdminStats, getAdminClients, getAdminTransactions,
   updateAdminKyc, updateAdminAccount,
-  adminCreateCredit, recordMissedPayment
+  adminCreateCredit, recordMissedPayment,
+  adminCreateClient, adminDeleteClient
 } from '../api';
 import KycEngineModal from '../components/KycEngineModal';
 
@@ -32,6 +33,11 @@ export default function Admin() {
   const [creditForm, setCreditForm] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [kycEngineClientId, setKycEngineClientId] = useState(null);
+  const [newClientModal, setNewClientModal] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({
+    nom: '', prenom: '', email: '', telephone: '', type_client: 'Particulier',
+    profession: '', revenu_mensuel: '75000', adresse_postale: 'Alger Centre'
+  });
 
   useEffect(() => {
     if (tab === 'stats') {
@@ -84,6 +90,39 @@ export default function Admin() {
     try {
       await recordMissedPayment(creditId, { jours_retard_ajoutes: 30 });
       alert('Impayé enregistré');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Create client (CRUD)
+  const handleCreateNewClient = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+    try {
+      await adminCreateClient(newClientForm);
+      alert('Client créé avec succès 🇩🇿 !');
+      setNewClientModal(false);
+      setNewClientForm({
+        nom: '', prenom: '', email: '', telephone: '', type_client: 'Particulier',
+        profession: '', revenu_mensuel: '75000', adresse_postale: 'Alger Centre'
+      });
+      // Refresh list
+      getAdminClients(page, 20, search, kycFilter).then(data => setClients(data.clients || []));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Delete client (CRUD)
+  const handleDeleteClient = async (clientId, clientName) => {
+    if (!window.confirm(`Confirmer la suppression définitive du client ${clientName} (#${clientId}) ?`)) return;
+    try {
+      await adminDeleteClient(clientId);
+      alert(`Client #${clientId} supprimé 🇩🇿`);
+      setClients(prev => prev.filter(c => c.client_id !== clientId));
     } catch (err) {
       alert(err.message);
     }
@@ -144,20 +183,39 @@ export default function Admin() {
           {/* CLIENTS TAB */}
           {tab === 'clients' && (
             <div className="table-container">
-              <div className="table-header">
-                <div className="search-bar" style={{ width: '300px' }}>
-                  <span className="search-bar-icon">🔍</span>
-                  <input placeholder="Rechercher nom, email..." value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && setPage(1)} />
+              <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="search-bar" style={{ width: '280px' }}>
+                    <span className="search-bar-icon">🔍</span>
+                    <input placeholder="Rechercher nom, email..." value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && setPage(1)} />
+                  </div>
+                  <select className="form-select" style={{ width: '180px', background: 'var(--bg-input)' }}
+                    value={kycFilter} onChange={e => { setKycFilter(e.target.value); setPage(1); }}>
+                    <option value="">Tous les statuts KYC</option>
+                    <option value="Verified">Vérifiés</option>
+                    <option value="Pending">En attente</option>
+                    <option value="Rejected">Rejetés</option>
+                  </select>
                 </div>
-                <select className="form-select" style={{ width: '200px', background: 'var(--bg-input)' }}
-                  value={kycFilter} onChange={e => { setKycFilter(e.target.value); setPage(1); }}>
-                  <option value="">Tous les statuts KYC</option>
-                  <option value="Verified">Vérifiés</option>
-                  <option value="Pending">En attente</option>
-                  <option value="Rejected">Rejetés</option>
-                </select>
+                <button 
+                  className="btn btn-sm"
+                  onClick={() => setNewClientModal(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #006233 0%, #059669 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 800,
+                    padding: '0.55rem 1rem',
+                    boxShadow: '0 4px 15px rgba(0, 98, 51, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  🇩🇿 + Nouveau Client (CRUD)
+                </button>
               </div>
 
               {/* Spotlight Banner for KYC Engine (from KYC.PDF) */}
@@ -242,16 +300,25 @@ export default function Admin() {
                         </td>
                         <td>{c.accounts?.length || 0}</td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
                             <button 
-                              className="btn btn-primary btn-sm" 
+                              className="btn btn-sm" 
                               onClick={() => setKycEngineClientId(c.client_id)}
                               title="Ouvrir le KYC Engine 360° complet"
+                              style={{ background: '#006233', color: '#fff', border: 'none', fontWeight: 700 }}
                             >
-                              🔍 KYC 360°
+                              🔍 360°
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={() => setSelectedClient(c)}>
                               Gérer
+                            </button>
+                            <button 
+                              className="btn btn-danger btn-sm" 
+                              onClick={() => handleDeleteClient(c.client_id, `${c.prenom} ${c.nom}`)}
+                              title="Supprimer définitivement ce client"
+                              style={{ background: '#d21034', border: 'none' }}
+                            >
+                              🗑️
                             </button>
                           </div>
                         </td>
@@ -451,11 +518,74 @@ export default function Admin() {
           </div>
         </div>
       )}
+      {/* Modal Créer Nouveau Client (CRUD) */}
+      {newClientModal && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setNewClientModal(false); }}>
+          <div className="modal-content" style={{ maxWidth: '650px', borderTop: '4px solid #006233' }}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>🇩🇿</span> Créer un Nouveau Client & KYC
+              </h2>
+              <button className="modal-close" onClick={() => setNewClientModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleCreateNewClient}>
+              <div className="grid-2 mt-md">
+                <div className="form-group">
+                  <label className="form-label">Nom</label>
+                  <input className="form-input" required value={newClientForm.nom} onChange={e => setNewClientForm({ ...newClientForm, nom: e.target.value })} placeholder="Ex: Benali" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prénom</label>
+                  <input className="form-input" required value={newClientForm.prenom} onChange={e => setNewClientForm({ ...newClientForm, prenom: e.target.value })} placeholder="Ex: Noureddine" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input className="form-input" type="email" required value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} placeholder="client@riskvision.dz" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Téléphone</label>
+                  <input className="form-input" value={newClientForm.telephone} onChange={e => setNewClientForm({ ...newClientForm, telephone: e.target.value })} placeholder="0550123456" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Type de Client</label>
+                  <select className="form-select" value={newClientForm.type_client} onChange={e => setNewClientForm({ ...newClientForm, type_client: e.target.value })}>
+                    <option value="Particulier">Particulier</option>
+                    <option value="Professionnel">Professionnel</option>
+                    <option value="PME/Entreprise">PME/Entreprise</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Profession / Activité</label>
+                  <input className="form-input" value={newClientForm.profession} onChange={e => setNewClientForm({ ...newClientForm, profession: e.target.value })} placeholder="Ex: Import / Export" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Revenu Mensuel (DA)</label>
+                  <input className="form-input" type="number" value={newClientForm.revenu_mensuel} onChange={e => setNewClientForm({ ...newClientForm, revenu_mensuel: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Adresse Postale</label>
+                  <input className="form-input" value={newClientForm.adresse_postale} onChange={e => setNewClientForm({ ...newClientForm, adresse_postale: e.target.value })} placeholder="Alger" />
+                </div>
+              </div>
+              <div className="flex gap-sm mt-lg" style={{ justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setNewClientModal(false)}>Annuler</button>
+                <button type="submit" className="btn btn-primary" disabled={processing} style={{ background: '#006233', border: 'none', fontWeight: 800 }}>
+                  {processing ? 'Création...' : '✓ Créer Client & Activer KYC 🇩🇿'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* KYC Engine 360 Modal */}
       {kycEngineClientId && (
         <KycEngineModal 
           clientId={kycEngineClientId} 
           onClose={() => setKycEngineClientId(null)} 
+          onUpdated={() => {
+            getAdminClients(page, 20, search, kycFilter).then(data => setClients(data.clients || []));
+          }}
         />
       )}
     </div>

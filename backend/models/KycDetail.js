@@ -54,6 +54,10 @@ const KycDetail = sequelize.define('KycDetail', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  engine_data: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
   rejection_reason: {
     type: DataTypes.TEXT,
     allowNull: true,

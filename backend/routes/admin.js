@@ -317,4 +317,80 @@ router.get('/transactions', async (req, res) => {
   }
 });
 
+// ── POST /api/admin/clients ──────────────────────────────────
+// CRUD: Create a new client with KYC and default account
+router.post('/clients', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const { nom, prenom, email, telephone, type_client, date_naissance, profession, revenu_mensuel, adresse_postale } = req.body;
+    
+    if (!nom || !prenom || !email) {
+      return res.status(400).json({ error: 'Nom, prénom et email requis' });
+    }
+
+    const defaultPassword = await bcrypt.hash('password123', 10);
+    const newClient = await Client.create({
+      nom,
+      prenom,
+      email,
+      password_hash: defaultPassword,
+      type_client: type_client || 'Particulier',
+      telephone: telephone || '0550123456',
+      date_naissance: date_naissance || '1990-01-01',
+    });
+
+    const newKyc = await KycDetail.create({
+      client_id: newClient.client_id,
+      profession: profession || 'Commerçant',
+      revenu_mensuel: revenu_mensuel || 80000,
+      adresse_postale: adresse_postale || 'Alger Centre',
+      kyc_status: 'Verified',
+      doc_identite_type: 'Carte Nationale',
+      doc_identite_numero: `109${newClient.client_id}88`,
+      doc_identite_uploaded: true,
+      justificatif_domicile_uploaded: true,
+      justificatif_revenu_uploaded: true,
+      declaration_ubo_uploaded: true,
+    });
+
+    // Create a primary account
+    const newAccount = await Account.create({
+      client_id: newClient.client_id,
+      numero_compte: `100${String(newClient.client_id).padStart(9, '0')}`,
+      type_compte: 'Courant Commercial',
+      devise: 'DZD',
+      solde_actuel: 250000,
+      status: 'Active',
+    });
+
+    const fullProfile = generateKycEngineProfile(newClient.toJSON(), newKyc.toJSON(), [newAccount.toJSON()]);
+    res.status(201).json({
+      message: 'Client créé avec succès 🇩🇿',
+      client: { ...newClient.toJSON(), kyc: newKyc, accounts: [newAccount] },
+      engineProfile: fullProfile,
+    });
+  } catch (err) {
+    console.error('Error creating client:', err);
+    res.status(500).json({ error: err.message || 'Erreur lors de la création du client' });
+  }
+});
+
+// ── DELETE /api/admin/clients/:id ────────────────────────────
+// CRUD: Delete a client
+router.delete('/clients/:id', async (req, res) => {
+  try {
+    const client = await Client.findByPk(req.params.id);
+    if (!client) return res.status(404).json({ error: 'Client introuvable' });
+
+    await KycDetail.destroy({ where: { client_id: client.client_id } });
+    await Account.destroy({ where: { client_id: client.client_id } });
+    await client.destroy();
+
+    res.json({ success: true, message: `Client #${req.params.id} supprimé avec succès 🇩🇿` });
+  } catch (err) {
+    console.error('Error deleting client:', err);
+    res.status(500).json({ error: 'Erreur lors de la suppression du client' });
+  }
+});
+
 module.exports = router;
