@@ -49,6 +49,13 @@ async function start() {
     await sequelize.authenticate();
     console.log('✅ PostgreSQL connected');
 
+    // Safe migration check
+    try {
+      await sequelize.query('ALTER TABLE kyc_details ADD COLUMN IF NOT EXISTS engine_data JSON;');
+    } catch (migErr) {
+      // Ignore non-fatal migration note
+    }
+
     // Sync all models (force: false to preserve data)
     await sequelize.sync({ force: false });
     console.log('✅ Database synced');

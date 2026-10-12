@@ -413,7 +413,7 @@ function generateKycEngineProfile(client, kyc = {}, accounts = []) {
   };
 
   // Merge custom user-edited overrides if any
-  const override = clientOverridesMap.get(Number(clientId)) || (kyc.engine_data ? (typeof kyc.engine_data === 'string' ? JSON.parse(kyc.engine_data) : kyc.engine_data) : null);
+  const override = clientOverridesMap.get(Number(clientId)) || (kyc && kyc.engine_data ? (typeof kyc.engine_data === 'string' ? JSON.parse(kyc.engine_data) : kyc.engine_data) : null);
   if (override) {
     if (override.tabs) {
       if (override.tabs.identity) Object.assign(profileResult.tabs.identity, override.tabs.identity);
@@ -434,7 +434,37 @@ function generateKycEngineProfile(client, kyc = {}, accounts = []) {
   return profileResult;
 }
 
+const fs = require('fs');
+const path = require('path');
+const overridesFilePath = path.join(__dirname, '../data/kyc_overrides.json');
 const clientOverridesMap = new Map();
+
+// Load existing overrides on startup
+try {
+  if (fs.existsSync(overridesFilePath)) {
+    const raw = fs.readFileSync(overridesFilePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    for (const [k, v] of Object.entries(parsed)) {
+      clientOverridesMap.set(Number(k), v);
+    }
+  }
+} catch (e) {
+  // Ignore startup read error
+}
+
+function persistOverridesToFile() {
+  try {
+    const dir = path.dirname(overridesFilePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const obj = {};
+    for (const [k, v] of clientOverridesMap.entries()) {
+      obj[k] = v;
+    }
+    fs.writeFileSync(overridesFilePath, JSON.stringify(obj, null, 2), 'utf8');
+  } catch (e) {
+    // Ignore file write error
+  }
+}
 
 function saveKycEngineOverride(clientId, updatedProfile) {
   const existing = clientOverridesMap.get(Number(clientId)) || {};
@@ -451,6 +481,7 @@ function saveKycEngineOverride(clientId, updatedProfile) {
     }
   };
   clientOverridesMap.set(Number(clientId), merged);
+  persistOverridesToFile();
   return merged;
 }
 

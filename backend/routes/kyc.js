@@ -156,12 +156,7 @@ router.put('/engine/:clientId', authMiddleware, async (req, res) => {
       if (updateData.tabs?.identity?.identificationDocument?.documentNumber) {
         kyc.doc_identite_numero = updateData.tabs.identity.identificationDocument.documentNumber;
       }
-      try {
-        kyc.engine_data = updateData;
-        await kyc.save();
-      } catch (e) {
-        // Fallback if column not yet added
-      }
+      await kyc.save();
     }
 
     const clientData = client ? client.toJSON() : { client_id: clientId };
