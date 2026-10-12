@@ -4,6 +4,7 @@ import {
   updateAdminKyc, updateAdminAccount,
   adminCreateCredit, recordMissedPayment
 } from '../api';
+import KycEngineModal from '../components/KycEngineModal';
 
 function formatMoney(val) {
   return parseFloat(val || 0).toLocaleString('fr-DZ', { minimumFractionDigits: 2 }) + ' DA';
@@ -30,6 +31,7 @@ export default function Admin() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [creditForm, setCreditForm] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [kycEngineClientId, setKycEngineClientId] = useState(null);
 
   useEffect(() => {
     if (tab === 'stats') {
@@ -157,39 +159,101 @@ export default function Admin() {
                   <option value="Rejected">Rejetés</option>
                 </select>
               </div>
+
+              {/* Spotlight Banner for KYC Engine (from KYC.PDF) */}
+              <div style={{
+                background: 'linear-gradient(90deg, rgba(37,99,235,0.18) 0%, rgba(30,41,59,0.8) 100%)',
+                border: '1px solid rgba(59,130,246,0.35)',
+                borderRadius: '10px',
+                padding: '0.85rem 1.25rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ background: '#2563eb', color: 'white', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '4px' }}>1/ KYC ENGINE</span>
+                    <strong style={{ color: '#f8fafc', fontSize: '0.95rem' }}>Customer Identity & Dynamic Risk Profile</strong>
+                  </div>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem', color: '#94a3b8' }}>
+                    Architecture 9 Tabs : Baseline + Surveillance Continue + Classification d'Activité (Cas C-001245).
+                  </p>
+                </div>
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setKycEngineClientId(1245)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+                >
+                  ⭐ Inspecter Client Démo (C-001245)
+                </button>
+              </div>
+
               <div className="table-scroll">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
+                      <th>Customer ID</th>
                       <th>Client</th>
                       <th>Type</th>
-                      <th>Statut KYC</th>
+                      <th>KYC & Risque</th>
+                      <th>Dynamic KYC</th>
                       <th>Comptes</th>
-                      <th>Crédits</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {clients.map(c => (
                       <tr key={c.client_id}>
-                        <td>{c.client_id}</td>
+                        <td>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#38bdf8' }}>
+                            {c.customer_id || `C-${String(c.client_id).padStart(6, '0')}`}
+                          </span>
+                        </td>
                         <td>
                           <div style={{ fontWeight: 600 }}>{c.prenom} {c.nom}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email}</div>
                         </td>
                         <td>{c.type_client}</td>
                         <td>
-                          <span className={`badge ${c.kyc?.kyc_status === 'Verified' ? 'success' : c.kyc?.kyc_status === 'Rejected' ? 'danger' : 'warning'}`}>
-                            {c.kyc?.kyc_status || 'Aucun'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span className={`badge ${c.kyc?.kyc_status === 'Verified' ? 'success' : c.kyc?.kyc_status === 'Rejected' ? 'danger' : 'warning'}`}>
+                              {c.kyc?.kyc_status || 'En attente'}
+                            </span>
+                            {c.kyc_score !== undefined && (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#cbd5e1' }}>
+                                {c.kyc_score}/100
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          {c.change_score >= 60 ? (
+                            <span className="badge danger" style={{ fontSize: '0.72rem' }}>
+                              ⚠️ Alerte ({c.change_score})
+                            </span>
+                          ) : (
+                            <span className="badge success" style={{ fontSize: '0.72rem' }}>
+                              ✓ Stable
+                            </span>
+                          )}
                         </td>
                         <td>{c.accounts?.length || 0}</td>
-                        <td>{c.credits?.length || 0}</td>
                         <td>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setSelectedClient(c)}>
-                            Gérer
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <button 
+                              className="btn btn-primary btn-sm" 
+                              onClick={() => setKycEngineClientId(c.client_id)}
+                              title="Ouvrir le KYC Engine 360° complet"
+                            >
+                              🔍 KYC 360°
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedClient(c)}>
+                              Gérer
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -284,6 +348,9 @@ export default function Admin() {
                     const reason = prompt("Motif du rejet :");
                     if (reason) handleKycStatus(selectedClient.client_id, 'Rejected', reason);
                   }}>Rejeter</button>
+                  <button className="btn btn-sm btn-secondary" onClick={() => setKycEngineClientId(selectedClient.client_id)}>
+                    🔍 Ouvrir KYC 360°
+                  </button>
                 </div>
               </div>
 
@@ -383,6 +450,13 @@ export default function Admin() {
             </form>
           </div>
         </div>
+      )}
+      {/* KYC Engine 360 Modal */}
+      {kycEngineClientId && (
+        <KycEngineModal 
+          clientId={kycEngineClientId} 
+          onClose={() => setKycEngineClientId(null)} 
+        />
       )}
     </div>
   );

@@ -22,27 +22,122 @@ http://69.57.163.97:4545/api/open
 
 ## Endpoints
 
-### 1. Get Clients
-Retrieves a list of clients, including their KYC status and associated accounts.
+### 1. Get Clients (with 1/ KYC ENGINE & Account Variables)
+Retrieves a list of clients, including their comprehensive 9-tab KYC profile, risk dimension scores, dynamic change detection alerts, and attached accounts.
 
 - **Endpoint:** `GET /clients`
 - **Query Parameters:** 
-  - `limit` (optional): Number of records to return (default: 100). Example: `?limit=50`
+  - `limit` (optional): Number of records to return (default: 100). Example: `?limit=5`
 - **Example Request (cURL):**
   ```bash
   curl -H "x-api-key: riskvision_external_share_key_999" "http://69.57.163.97:4545/api/open/clients?limit=5"
   ```
-- **Example Request (JavaScript/Fetch):**
-  ```javascript
-  fetch('http://69.57.163.97:4545/api/open/clients', {
-    headers: { 'x-api-key': 'riskvision_external_share_key_999' }
-  })
-  .then(res => res.json())
-  .then(console.log);
+- **Example Response Structure:**
+  ```json
+  {
+    "data": [
+      {
+        "client_id": 1245,
+        "customer_id": "C-001245",
+        "nom": "Benali",
+        "prenom": "Noureddine",
+        "type_client": "PME/Entreprise",
+        "kyc_engine": {
+          "status": "ACTIVE",
+          "kyc_status": "VERIFIED",
+          "risk_level": "MEDIUM",
+          "kyc_score": 58,
+          "change_score": 78,
+          "ews_status": "EWS HIGH RISK",
+          "last_review": "06/10/2026",
+          "next_review": "06/10/2027",
+          "identity": {
+            "fullName": "Noureddine Benali",
+            "nationality": "Algérienne",
+            "identityVerification": "VERIFIED",
+            "documentStatus": "VALID"
+          },
+          "business": {
+            "profileType": "Company",
+            "legalName": "Atlas Maghreb Import-Export SARL",
+            "businessActivity": "Import / Export",
+            "annualTurnover": "24,000,000 DA"
+          },
+          "financial": {
+            "declaredIncome": "2,000,000 DA / mois",
+            "declaredTurnover": "2,000,000 DA / mois",
+            "sourceOfFunds": "Revenus d'activité commerciale Import/Export",
+            "expectedMonthlyInflow": "2,000,000 DA",
+            "expectedMonthlyOutflow": "1,800,000 DA"
+          },
+          "risk_engine": {
+            "dimensions": {
+              "identityRisk": { "score": 10, "max": 100 },
+              "businessRisk": { "score": 35, "max": 100 },
+              "financialRisk": { "score": 48, "max": 100 },
+              "geographicRisk": { "score": 20, "max": 100 },
+              "productRisk": { "score": 30, "max": 100 },
+              "channelRisk": { "score": 42, "max": 100 },
+              "behavioralRisk": { "score": 67, "max": 100 },
+              "kycDataQuality": { "score": 5, "max": 100 }
+            },
+            "overallScore": 58,
+            "riskLevel": "MEDIUM"
+          },
+          "behavior": {
+            "baselineMonthlyTurnover": "20,000,000 DA",
+            "observedTransactionsCount": 160,
+            "counterpartiesBreakdown": [
+              { "sector": "Entreprises Construction & BTP", "percentage": 64 },
+              { "sector": "Paiements Grossistes & Matériaux", "percentage": 21 },
+              { "sector": "Opérations Import / Export", "percentage": 15 }
+            ]
+          },
+          "changes": {
+            "profileChangeDetected": true,
+            "changeScore": 78,
+            "changeStatus": "SIGNIFICANT PROFILE CHANGE",
+            "activityClassificationEngine": {
+              "declaredActivity": "IMPORT / EXPORT",
+              "observedActivity": "Wholesale / Construction",
+              "activityConsistencyScore": 42,
+              "activityConsistencyLabel": "LOW (ACTIVITY MISMATCH)"
+            },
+            "dynamicAlertEws": {
+              "action": "Send to EWS",
+              "signals": {
+                "kycChange": 78,
+                "transactionAnomaly": 82,
+                "newBeneficiaryRisk": 75,
+                "geographicRisk": 60
+              },
+              "ewsStatus": "EWS HIGH RISK"
+            }
+          }
+        },
+        "accounts": [
+          {
+            "accountId": 101,
+            "numeroCompte": "100000124501",
+            "typeCompte": "Courant Commercial",
+            "devise": "DZD",
+            "soldeActuel": 8450000,
+            "status": "Active",
+            "inflowMonthly": 18500000,
+            "outflowMonthly": 17200000,
+            "txCount30d": 120,
+            "averageTxAmount": 297500,
+            "accountRiskScore": 74,
+            "alertLevel": "ANOMALY_WATCH"
+          }
+        ]
+      }
+    ]
+  }
   ```
 
-### 2. Get Accounts
-Retrieves a list of all bank accounts, their current balances, currencies, and their owner's basic information.
+### 2. Get Accounts (with Risk & Velocity Metrics)
+Retrieves bank accounts enriched with monthly inflows, outflows, transaction velocity (30d), and specific account risk score.
 
 - **Endpoint:** `GET /accounts`
 - **Query Parameters:** 
@@ -51,6 +146,14 @@ Retrieves a list of all bank accounts, their current balances, currencies, and t
   ```bash
   curl -H "x-api-key: riskvision_external_share_key_999" "http://69.57.163.97:4545/api/open/accounts"
   ```
+- **Returned Variables per Account:**
+  - `account_id`, `numero_compte`, `type_compte`, `devise`, `solde_actuel`, `status`
+  - `inflow_monthly`: Total monthly inbound funds (DA)
+  - `outflow_monthly`: Total monthly outbound funds (DA)
+  - `tx_count_30d`: Count of operations executed over the last 30 days
+  - `average_tx_amount`: Average transaction amount (DA)
+  - `account_risk_score`: Specific risk score computed for the account (0-100)
+  - `alert_level`: `NORMAL` | `SURVEILLANCE` | `ANOMALY_WATCH`
 
 ### 3. Get Transactions (Ledger)
 Retrieves the global ledger of transactions, showing movements between accounts, operation types, amounts, and dates.

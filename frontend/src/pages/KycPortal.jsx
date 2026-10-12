@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { getKyc, updateKyc } from '../api';
+import KycEngineModal from '../components/KycEngineModal';
 
 export default function KycPortal() {
   const [kyc, setKyc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showEngineModal, setShowEngineModal] = useState(false);
+  const [engineTargetId, setEngineTargetId] = useState(null);
 
   const [form, setForm] = useState({
     profession: '', revenu_mensuel: '', adresse_postale: '',
@@ -73,10 +76,27 @@ export default function KycPortal() {
       <div className="page-header">
         <div className="flex-between">
           <div>
-            <h1 className="page-title">Vérification KYC</h1>
-            <p className="page-subtitle">Complétez vos informations pour activer votre compte</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <span style={{ background: '#2563eb', color: 'white', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '4px' }}>1/ KYC ENGINE</span>
+              <h1 className="page-title" style={{ margin: 0 }}>Vérification & Profil KYC</h1>
+            </div>
+            <p className="page-subtitle">Complétez vos informations et visualisez votre profil de risque 360°</p>
           </div>
-          {kyc && statusBadge(kyc.kyc_status)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={() => { setEngineTargetId(kyc?.client_id || 1); setShowEngineModal(true); }}
+            >
+              🔍 Mon Profil KYC 360°
+            </button>
+            <button 
+              className="btn btn-primary btn-sm"
+              onClick={() => { setEngineTargetId(1245); setShowEngineModal(true); }}
+            >
+              ⭐ Cas PDF (C-001245)
+            </button>
+            {kyc && statusBadge(kyc.kyc_status)}
+          </div>
         </div>
       </div>
 
@@ -164,6 +184,14 @@ export default function KycPortal() {
           </button>
         </div>
       </form>
+
+      {/* KYC Engine 360 Modal */}
+      {showEngineModal && (
+        <KycEngineModal 
+          clientId={engineTargetId || kyc?.client_id || 1245} 
+          onClose={() => setShowEngineModal(false)} 
+        />
+      )}
     </div>
   );
 }
