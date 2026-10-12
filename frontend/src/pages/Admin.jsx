@@ -6,6 +6,7 @@ import {
   adminCreateClient, adminDeleteClient
 } from '../api';
 import KycEngineModal from '../components/KycEngineModal';
+import ShareApiModal from '../components/ShareApiModal';
 
 function formatMoney(val) {
   return parseFloat(val || 0).toLocaleString('fr-DZ', { minimumFractionDigits: 2 }) + ' DA';
@@ -33,6 +34,7 @@ export default function Admin() {
   const [creditForm, setCreditForm] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [kycEngineClientId, setKycEngineClientId] = useState(null);
+  const [shareApiModalOpen, setShareApiModalOpen] = useState(false);
   const [newClientModal, setNewClientModal] = useState(false);
   const [newClientForm, setNewClientForm] = useState({
     nom: '', prenom: '', email: '', telephone: '', type_client: 'Particulier',
@@ -199,23 +201,42 @@ export default function Admin() {
                     <option value="Rejected">Rejetés</option>
                   </select>
                 </div>
-                <button 
-                  className="btn btn-sm"
-                  onClick={() => setNewClientModal(true)}
-                  style={{
-                    background: 'linear-gradient(135deg, #006233 0%, #059669 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontWeight: 800,
-                    padding: '0.55rem 1rem',
-                    boxShadow: '0 4px 15px rgba(0, 98, 51, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem'
-                  }}
-                >
-                  🇩🇿 + Nouveau Client (CRUD)
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button 
+                    className="btn btn-sm"
+                    onClick={() => setShareApiModalOpen(true)}
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: '#34d399',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      fontWeight: 700,
+                      padding: '0.55rem 0.95rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🌐 Partager l'API (Open API)
+                  </button>
+                  <button 
+                    className="btn btn-sm"
+                    onClick={() => setNewClientModal(true)}
+                    style={{
+                      background: 'linear-gradient(135deg, #006233 0%, #059669 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontWeight: 800,
+                      padding: '0.55rem 1rem',
+                      boxShadow: '0 4px 15px rgba(0, 98, 51, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    🇩🇿 + Nouveau Client (CRUD)
+                  </button>
+                </div>
               </div>
 
               {/* Spotlight Banner for KYC Engine (from KYC.PDF) */}
@@ -588,6 +609,12 @@ export default function Admin() {
           }}
         />
       )}
+
+      {/* Share API Modal */}
+      <ShareApiModal 
+        isOpen={shareApiModalOpen} 
+        onClose={() => setShareApiModalOpen(false)} 
+      />
     </div>
   );
 }
