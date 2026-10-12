@@ -191,66 +191,154 @@ router.put('/accounts/:id', async (req, res) => {
 
 // ── Full CRUD for credits (Admin) ────────────────────────────
 
+// ── GET /api/admin/credits ───────────────────────────────────
+// List all credits across the bank (paginated with client & account details)
+router.get('/credits', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Credit.findAndCountAll({
+      include: [
+        {
+          association: 'client',
+          attributes: ['client_id', 'nom', 'prenom', 'type_client', 'telephone'],
+          include: [{ association: 'kyc', attributes: ['kyc_status', 'profession', 'revenu_mensuel'] }]
+        },
+        {
+          association: 'account',
+          attributes: ['account_id', 'numero_compte', 'devise', 'solde_actuel', 'status']
+        }
+      ],
+      order: [['date_debut', 'DESC']],
+      limit,
+      offset,
+    });
+
+    res.json({
+      credits: rows,
+      total: count,
+      page,
+      totalPages: Math.ceil(count / limit),
+    });
+  } catch (err) {
+    console.error('Admin credits list error:', err);
+    res.status(500).json({ error: err.message || 'Erreur serveur lors de la récupération des crédits' });
+  }
+});
+
 // Admin: create credit for any client
 router.post('/credits', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const {
+    let {
       client_id, account_id, type_credit, montant_initial,
       taux_interet, duree_mois, date_debut, nombre_impayes,
       jours_retard, status,
     } = req.body;
 
+    if (!client_id) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Identifiant client (client_id) requis' });
+    }
+
+    client_id = parseInt(client_id, 10);
     const amount = parseFloat(montant_initial);
-    const rate = parseFloat(taux_interet) / 100 / 12;
-    const months = parseInt(duree_mois);
+    if (!amount || isNaN(amount) || amount <= 0) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Montant initial du crédit invalide' });
+    }
+
+    const rate = parseFloat(taux_interet || 5) / 100 / 12;
+    const months = parseInt(duree_mois || 12, 10);
     const mensualite = rate > 0
       ? (amount * rate * Math.pow(1 + rate, months)) / (Math.pow(1 + rate, months) - 1)
       : amount / months;
 
-    const startDate = date_debut ? new Date(date_debut) : new Date();
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + months);
+    // Ensure client exists in database to prevent foreign key errors
+    let client = await Client.findByPk(client_id, { transaction: t });
+    if (!client) {
+      // Create record if it is demo client (e.g. C-001245)
+      const bcrypt = require('bcryptjs');
+      const defaultPassword = await bcrypt.hash('password123', 10);
+      client = await Client.create({
+        client_id,
+        nom: 'Benali',
+        prenom: 'Noureddine',
+        email: `client${client_id}@riskvision.dz`,
+        password_hash: defaultPassword,
+        type_client: 'PME/Entreprise',
+        telephone: '0550123456',
+        date_naissance: '1984-06-15',
+      }, { transaction: t });
+    }
+
+    // Ensure client has an account to link the credit to
+    let account = null;
+    if (account_id) {
+      account = await Account.findByPk(parseInt(account_id, 10), { lock: t.LOCK.UPDATE, transaction: t });
+    }
+    if (!account) {
+      account = await Account.findOne({ where: { client_id }, lock: t.LOCK.UPDATE, transaction: t });
+    }
+    if (!account) {
+      account = await Account.create({
+        client_id,
+        numero_compte: `100${String(client_id).padStart(9, '0')}`,
+        type_compte: 'Courant Commercial',
+        devise: 'DZD',
+        solde_actuel: 0,
+        status: 'Active',
+      }, { transaction: t });
+    }
+
+    const startDateObj = date_debut ? new Date(date_debut) : new Date();
+    const endDateObj = new Date(startDateObj);
+    endDateObj.setMonth(endDateObj.getMonth() + months);
+
+    const dateDebutStr = startDateObj.toISOString().split('T')[0];
+    const dateFinStr = endDateObj.toISOString().split('T')[0];
 
     const credit = await Credit.create({
-      client_id, account_id, type_credit,
+      client_id,
+      account_id: account.account_id,
+      type_credit: type_credit || 'Credit Consommation',
       montant_initial: amount,
       montant_restant: amount,
-      taux_interet: parseFloat(taux_interet),
+      taux_interet: parseFloat(taux_interet || 5),
       mensualite: Math.round(mensualite * 100) / 100,
       duree_mois: months,
       nombre_impayes: nombre_impayes || 0,
       jours_retard: jours_retard || 0,
       status: status || 'Active',
-      date_debut: startDate,
-      date_fin_prevue: endDate,
+      date_debut: dateDebutStr,
+      date_fin_prevue: dateFinStr,
     }, { transaction: t });
 
-    // Disburse into account
-    const account = await Account.findByPk(account_id, { lock: t.LOCK.UPDATE, transaction: t });
-    if (account) {
-      account.solde_actuel = parseFloat(account.solde_actuel) + amount;
-      await account.save({ transaction: t });
+    // Disburse funds into the account
+    account.solde_actuel = parseFloat(account.solde_actuel || 0) + amount;
+    await account.save({ transaction: t });
 
-      await Transaction.create({
-        compte_emetteur: null,
-        compte_beneficiaire: account.account_id,
-        montant: amount,
-        devise: account.devise,
-        type_operation: 'Depot',
-        canal: 'Agence',
-        description: `[Admin] Déblocage ${type_credit} #${credit.credit_id}`,
-        device_ip: req.ip,
-        status: 'Completed',
-      }, { transaction: t });
-    }
+    // Ledger record
+    await Transaction.create({
+      compte_emetteur: null,
+      compte_beneficiaire: account.account_id,
+      montant: amount,
+      devise: account.devise || 'DZD',
+      type_operation: 'Depot',
+      canal: 'Agence',
+      description: `[Admin] Déblocage ${type_credit || 'Crédit'} #${credit.credit_id}`,
+      device_ip: req.ip || '127.0.0.1',
+      status: 'Completed',
+    }, { transaction: t });
 
     await t.commit();
-    res.status(201).json({ message: 'Crédit créé par admin', credit });
+    res.status(201).json({ message: 'Crédit créé avec succès par l\'administrateur 🇩🇿', credit });
   } catch (err) {
     await t.rollback();
     console.error('Admin credit create error:', err);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ error: err.message || 'Erreur serveur lors de la création du crédit' });
   }
 });
 

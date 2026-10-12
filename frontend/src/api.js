@@ -9,7 +9,12 @@ async function request(endpoint, options = {}) {
   };
 
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    data = { error: `Erreur HTTP ${res.status}: ${res.statusText}` };
+  }
 
   if (!res.ok) {
     throw new Error(data.error || 'Une erreur est survenue');
@@ -62,3 +67,4 @@ export const adminDeleteCredit = (id) => request(`/admin/credits/${id}`, { metho
 export const adminCreateClient = (data) => request('/admin/clients', { method: 'POST', body: JSON.stringify(data) });
 export const adminDeleteClient = (id) => request(`/admin/clients/${id}`, { method: 'DELETE' });
 export const getAdminTransactions = (page = 1, limit = 50) => request(`/admin/transactions?page=${page}&limit=${limit}`);
+export const getAdminCredits = (page = 1, limit = 50) => request(`/admin/credits?page=${page}&limit=${limit}`);
