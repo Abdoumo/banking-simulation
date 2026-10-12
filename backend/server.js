@@ -9,6 +9,7 @@ const transactionRoutes = require('./routes/transactions');
 const creditRoutes = require('./routes/credits');
 const adminRoutes = require('./routes/admin');
 const openRoutes = require('./routes/open');
+const docsRoutes = require('./routes/docs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,11 +25,22 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/credits', creditRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/open', openRoutes);
+app.use('/api/open', cors(), openRoutes);
+app.use('/api/docs', docsRoutes);
+app.use('/docs', docsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ── Serve Frontend (Production Mode) ─────────────────────────
+const path = require('path');
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // ── Start ────────────────────────────────────────────────────

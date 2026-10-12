@@ -15,7 +15,7 @@ All requests to the Open API must include the `x-api-key` header.
 ## Base URL
 All requests should be prefixed with:
 ```text
-http://localhost:3000/api/open
+http://69.57.163.97:4545/api/open
 ```
 
 ---
@@ -30,11 +30,11 @@ Retrieves a list of clients, including their KYC status and associated accounts.
   - `limit` (optional): Number of records to return (default: 100). Example: `?limit=50`
 - **Example Request (cURL):**
   ```bash
-  curl -H "x-api-key: riskvision_external_share_key_999" "http://localhost:3000/api/open/clients?limit=5"
+  curl -H "x-api-key: riskvision_external_share_key_999" "http://69.57.163.97:4545/api/open/clients?limit=5"
   ```
 - **Example Request (JavaScript/Fetch):**
   ```javascript
-  fetch('http://localhost:3000/api/open/clients', {
+  fetch('http://69.57.163.97:4545/api/open/clients', {
     headers: { 'x-api-key': 'riskvision_external_share_key_999' }
   })
   .then(res => res.json())
@@ -49,7 +49,7 @@ Retrieves a list of all bank accounts, their current balances, currencies, and t
   - `limit` (optional): Number of records to return (default: 100).
 - **Example Request (cURL):**
   ```bash
-  curl -H "x-api-key: riskvision_external_share_key_999" "http://localhost:3000/api/open/accounts"
+  curl -H "x-api-key: riskvision_external_share_key_999" "http://69.57.163.97:4545/api/open/accounts"
   ```
 
 ### 3. Get Transactions (Ledger)
@@ -60,7 +60,7 @@ Retrieves the global ledger of transactions, showing movements between accounts,
   - `limit` (optional): Number of records to return (default: 100).
 - **Example Request (cURL):**
   ```bash
-  curl -H "x-api-key: riskvision_external_share_key_999" "http://localhost:3000/api/open/transactions"
+  curl -H "x-api-key: riskvision_external_share_key_999" "http://69.57.163.97:4545/api/open/transactions"
   ```
 
 ---
