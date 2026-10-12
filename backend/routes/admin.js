@@ -2,6 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { Client, KycDetail, Account, Transaction, Credit, sequelize } = require('../models');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { generateKycEngineProfile } = require('../utils/kycEngine');
 
 const router = express.Router();
 
@@ -99,8 +100,21 @@ router.get('/clients', async (req, res) => {
       distinct: true,
     });
 
+    const enrichedRows = rows.map(c => {
+      const plain = c.toJSON();
+      const profile = generateKycEngineProfile(plain, plain.kyc || {}, plain.accounts || []);
+      return {
+        ...plain,
+        customer_id: profile.summary.customerId,
+        kyc_score: profile.summary.kycScore,
+        risk_level: profile.summary.riskLevel,
+        change_score: profile.summary.changeScore,
+        ews_alert: profile.summary.ewsAlert,
+      };
+    });
+
     res.json({
-      clients: rows,
+      clients: enrichedRows,
       total: count,
       page,
       totalPages: Math.ceil(count / limit),
@@ -123,7 +137,9 @@ router.get('/clients/:id', async (req, res) => {
       ],
     });
     if (!client) return res.status(404).json({ error: 'Client introuvable' });
-    res.json(client);
+    const plain = client.toJSON();
+    const engineProfile = generateKycEngineProfile(plain, plain.kyc || {}, plain.accounts || []);
+    res.json({ ...plain, engineProfile });
   } catch (err) {
     console.error('Admin client detail error:', err);
     res.status(500).json({ error: 'Erreur serveur' });

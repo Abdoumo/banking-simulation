@@ -26,6 +26,8 @@ export const getMe = () => request('/auth/me');
 // KYC
 export const getKyc = () => request('/kyc');
 export const updateKyc = (data) => request('/kyc', { method: 'PUT', body: JSON.stringify(data) });
+export const getKycEngine = (clientId) => request(`/kyc/engine/${clientId}`);
+export const sendKycToEws = (clientId) => request(`/kyc/engine/${clientId}/ews`, { method: 'POST' });
 
 // Accounts
 export const getAccounts = () => request('/accounts');
